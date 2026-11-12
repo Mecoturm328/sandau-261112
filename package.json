@@ -1,0 +1,22 @@
+{
+  "name": "mori-coffee-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MORI COFFEE 森屿咖啡经营数据台 · Node.js + SQLite 全栈数据展示网页",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "seed": "node seed.js",
+    "check": "node --check server.js && node --check database.js && node --check seed.js && node --check public/app.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "keywords": [
+    "dashboard",
+    "sqlite",
+    "vanilla-javascript",
+    "data-visualization"
+  ],
+  "license": "MIT"
+}

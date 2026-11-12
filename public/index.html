@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#173a2c">
+  <meta name="description" content="MORI COFFEE 森屿咖啡经营数据台：营业额、订单趋势、品类构成与门店表现，一目了然。">
+  <title>MORI COFFEE · 经营数据台</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要内容</a>
+  <div class="loading-bar" id="loadingBar" aria-hidden="true"></div>
+
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="侧边导航">
+      <div class="sidebar-head">
+        <a class="brand" href="#overview" aria-label="MORI COFFEE 首页">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <path d="M7.5 22.5V10.2l8.5 7.1 8.5-7.1v12.3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M11 24.3h10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="brand-copy">
+            <strong>MORI</strong>
+            <small>COFFEE · 森屿</small>
+          </span>
+        </a>
+        <button class="sidebar-close" id="sidebarClose" type="button" aria-label="关闭导航">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <nav class="side-nav" aria-label="页面内导航">
+        <p class="side-caption">经营面板 <span>WORKSPACE</span></p>
+        <a class="nav-item is-active" href="#overview" data-nav aria-current="location">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" fill="none"><path d="M3 10.5h4l2-5 2.4 9 1.8-6H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="nav-text">数据概览</span>
+          <span class="nav-index">01</span>
+        </a>
+        <a class="nav-item" href="#trendSection" data-nav>
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" fill="none"><path d="M3.5 15.5V4.5M3.5 15.5h13M6 12l3.2-3.6 2.5 2 4.1-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="nav-text">趋势分析</span>
+          <span class="nav-index">02</span>
+        </a>
+        <a class="nav-item" href="#productSection" data-nav>
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" fill="none"><path d="M4 16V9.5M10 16V4M16 16v-4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M3 16.5h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </span>
+          <span class="nav-text">商品洞察</span>
+          <span class="nav-index">03</span>
+        </a>
+        <a class="nav-item" href="#ordersSection" data-nav>
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" fill="none"><rect x="4" y="3" width="12" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M7 7h6M7 10h6M7 13h3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </span>
+          <span class="nav-text">订单流水</span>
+          <span class="nav-index">04</span>
+        </a>
+      </nav>
+
+      <div class="side-stores">
+        <p class="side-caption">门店网络 <span id="storeCountLabel">03</span></p>
+        <div class="side-store-list" id="sideStoreList">
+          <div class="side-store-skeleton"></div>
+          <div class="side-store-skeleton"></div>
+          <div class="side-store-skeleton"></div>
+        </div>
+      </div>
+
+      <div class="sidebar-foot">
+        <div class="db-status">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span>SQLite 已连接</span>
+          <span class="status-live">LOCAL</span>
+        </div>
+        <p class="db-meta" id="dbMeta">正在读取本地数据…</p>
+        <p class="sidebar-signature">MORI COFFEE · DATA DESK <span>© 2026</span></p>
+      </div>
+    </aside>
+
+    <div class="sidebar-scrim" id="sidebarScrim" aria-hidden="true"></div>
+
+    <div class="page">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="icon-button menu-button" id="menuButton" type="button" aria-label="打开导航" aria-controls="sidebar" aria-expanded="false">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3 5.5h14M3 10h14M3 14.5h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          </button>
+          <div class="breadcrumb" aria-label="当前位置">
+            <span>门店经营</span>
+            <span class="breadcrumb-slash" aria-hidden="true">/</span>
+            <strong>数据概览</strong>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <span class="updated-at" id="updatedAt">正在同步数据…</span>
+          <button class="refresh-button" id="refreshButton" type="button">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M16 7.2A6.4 6.4 0 1 0 16.2 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M16.5 3.8v3.8h-3.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>刷新</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="content" id="main-content" aria-busy="true">
+        <section class="page-head" id="overview" aria-labelledby="pageTitle">
+          <div class="page-head-copy">
+            <p class="eyebrow"><span class="eyebrow-line" aria-hidden="true"></span>OVERVIEW / 经营概览</p>
+            <h1 id="pageTitle">每一杯咖啡，<br><span>都有迹可循。</span></h1>
+            <p class="lede">从清晨的第一杯拿铁，到傍晚的最后一块巴斯克。看看三家门店最近卖得怎么样。</p>
+          </div>
+          <div class="date-stamp" aria-label="当前数据区间">
+            <span class="stamp-icon" aria-hidden="true">
+              <svg viewBox="0 0 32 32" fill="none">
+                <circle cx="16" cy="16" r="12.5" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2.5 3.5"/>
+                <path d="M16 9.5v7l4.2 2.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            <span class="stamp-label">REPORTING PERIOD</span>
+            <strong id="heroRange">—</strong>
+            <span class="stamp-meta" id="heroDays">正在读取数据</span>
+          </div>
+        </section>
+
+        <section class="filter-bar" aria-label="筛选条件">
+          <div class="period-switch" role="group" aria-label="快捷选择时间范围">
+            <button class="period-button" type="button" data-preset="7" aria-pressed="false">近 7 天</button>
+            <button class="period-button" type="button" data-preset="30" aria-pressed="false">近 30 天</button>
+            <button class="period-button" type="button" data-preset="90" aria-pressed="false">近 90 天</button>
+          </div>
+          <span class="filter-divider" aria-hidden="true"></span>
+          <div class="date-range">
+            <label class="date-field">
+              <span>开始</span>
+              <input id="startDate" type="date" aria-label="开始日期">
+            </label>
+            <span class="date-dash" aria-hidden="true">—</span>
+            <label class="date-field">
+              <span>结束</span>
+              <input id="endDate" type="date" aria-label="结束日期">
+            </label>
+          </div>
+          <button class="query-button" id="applyFilter" type="button">查询</button>
+          <div class="filter-spacer"></div>
+          <label class="store-select-wrap">
+            <span>门店</span>
+            <select id="storeSelect" aria-label="选择门店">
+              <option value="">全部门店</option>
+            </select>
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </label>
+        </section>
+
+        <section class="kpi-grid" aria-label="核心经营指标">
+          <article class="kpi-card kpi-card--featured">
+            <div class="kpi-head">
+              <span class="kpi-label">营业额</span>
+              <span class="kpi-index">01</span>
+            </div>
+            <div class="kpi-value">
+              <span class="kpi-currency">¥</span>
+              <strong id="kpiRevenue">0</strong>
+            </div>
+            <div class="kpi-foot">
+              <div class="kpi-change">
+                <span class="change-pill is-neutral" id="changeRevenue" data-change>—</span>
+                <span class="change-caption">较上期</span>
+              </div>
+              <div class="sparkline" id="sparkRevenue" aria-hidden="true"></div>
+            </div>
+          </article>
+
+          <article class="kpi-card">
+            <div class="kpi-head">
+              <span class="kpi-label">订单量</span>
+              <span class="kpi-index">02</span>
+            </div>
+            <div class="kpi-value">
+              <strong id="kpiOrders">0</strong>
+              <span class="kpi-suffix">单</span>
+            </div>
+            <div class="kpi-foot">
+              <div class="kpi-change">
+                <span class="change-pill is-neutral" id="changeOrders" data-change>—</span>
+                <span class="change-caption">较上期</span>
+              </div>
+              <div class="sparkline" id="sparkOrders" aria-hidden="true"></div>
+            </div>
+          </article>
+
+          <article class="kpi-card">
+            <div class="kpi-head">
+              <span class="kpi-label">客单价</span>
+              <span class="kpi-index">03</span>
+            </div>
+            <div class="kpi-value">
+              <span class="kpi-currency">¥</span>
+              <strong id="kpiAvgTicket">0</strong>
+            </div>
+            <div class="kpi-foot">
+              <div class="kpi-change">
+                <span class="change-pill is-neutral" id="changeAvgTicket" data-change>—</span>
+                <span class="change-caption">较上期</span>
+              </div>
+              <div class="sparkline" id="sparkAvgTicket" aria-hidden="true"></div>
+            </div>
+          </article>
+
+          <article class="kpi-card">
+            <div class="kpi-head">
+              <span class="kpi-label">会员订单占比</span>
+              <span class="kpi-index">04</span>
+            </div>
+            <div class="kpi-value">
+              <strong id="kpiMemberShare">0</strong>
+              <span class="kpi-suffix">%</span>
+            </div>
+            <div class="kpi-foot">
+              <div class="kpi-change">
+                <span class="change-pill is-neutral" id="changeMemberShare" data-change>—</span>
+                <span class="change-caption">较上期</span>
+              </div>
+              <div class="sparkline" id="sparkMemberShare" aria-hidden="true"></div>
+            </div>
+          </article>
+        </section>
+
+        <section class="dashboard-grid" id="trendSection" aria-label="营收走势与品类构成">
+          <article class="panel trend-panel">
+            <header class="panel-head">
+              <div>
+                <p class="panel-kicker">REVENUE TREND</p>
+                <h2>营收走势</h2>
+              </div>
+              <div class="panel-figure">
+                <span>日均营收</span>
+                <strong id="dailyAvg">—</strong>
+              </div>
+            </header>
+            <div class="chart-legend">
+              <span class="legend-item"><span class="legend-dot legend-dot--orange" aria-hidden="true"></span>营业额</span>
+              <span class="legend-note">悬停查看每日详情</span>
+            </div>
+            <div class="trend-chart-wrap">
+              <div class="trend-chart" id="trendChart" role="img" aria-label="每日营业额走势图"></div>
+              <div class="chart-tooltip" id="trendTooltip" hidden></div>
+            </div>
+          </article>
+
+          <article class="panel category-panel">
+            <header class="panel-head">
+              <div>
+                <p class="panel-kicker">SALES MIX</p>
+                <h2>品类构成</h2>
+              </div>
+              <span class="panel-note">按营业额</span>
+            </header>
+            <div class="category-body">
+              <div class="donut-stage" id="categoryDonut" role="img" aria-label="各品类营业额占比环形图"></div>
+              <ul class="category-legend" id="categoryLegend"></ul>
+            </div>
+          </article>
+        </section>
+
+        <section class="dashboard-grid dashboard-grid--secondary" id="productSection" aria-label="时段与门店表现">
+          <article class="panel hourly-panel">
+            <header class="panel-head">
+              <div>
+                <p class="panel-kicker">DAILY RHYTHM</p>
+                <h2>一天的节奏</h2>
+              </div>
+              <span class="peak-badge" id="peakBadge">—</span>
+            </header>
+            <p class="panel-subtitle">按到店时段统计订单量，找到属于门店的高峰。</p>
+            <div class="hourly-chart" id="hourlyChart" role="img" aria-label="按小时统计的订单量柱状图"></div>
+          </article>
+
+          <article class="panel store-panel">
+            <header class="panel-head">
+              <div>
+                <p class="panel-kicker">STORE RANKING</p>
+                <h2>门店表现</h2>
+              </div>
+              <span class="panel-note" id="storeScope">全部门店</span>
+            </header>
+            <div class="store-ranking" id="storeRanking"></div>
+          </article>
+        </section>
+
+        <section class="dashboard-grid dashboard-grid--bottom" id="ordersSection" aria-label="人气单品与最近订单">
+          <article class="panel products-panel">
+            <header class="panel-head">
+              <div>
+                <p class="panel-kicker">TOP SELLERS</p>
+                <h2>人气单品</h2>
+              </div>
+              <span class="panel-note">按销量排序</span>
+            </header>
+            <div class="product-ranking" id="productRanking"></div>
+          </article>
+
+          <article class="panel orders-panel">
+            <header class="panel-head">
+              <div>
+                <p class="panel-kicker">RECENT ORDERS</p>
+                <h2>最近订单</h2>
+              </div>
+              <button class="export-button" id="exportButton" type="button">
+                <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 2.8v8.1M5.8 8l3.2 3.2L12.2 8M3.5 12.3v1.9c0 .6.5 1 1 1h9c.6 0 1-.4 1-1v-1.9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>导出 CSV</span>
+              </button>
+            </header>
+            <div class="table-wrap">
+              <table class="orders-table">
+                <caption class="sr-only">最近订单流水</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">订单</th>
+                    <th scope="col">门店</th>
+                    <th scope="col">商品</th>
+                    <th scope="col" class="align-right">金额</th>
+                  </tr>
+                </thead>
+                <tbody id="ordersBody"></tbody>
+              </table>
+              <div class="empty-state empty-state--compact" id="ordersEmpty" hidden>
+                <span class="empty-mark" aria-hidden="true">∅</span>
+                <p>这个区间还没有订单，换个日期看看吧。</p>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <footer class="page-footer">
+          <p>MORI COFFEE · 经营数据台 <span>Designed for morning people.</span></p>
+          <p>本地 SQLite 数据库 · 演示数据 <span id="footerRows">—</span></p>
+        </footer>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden>
+    <span class="toast-dot" aria-hidden="true"></span>
+    <span id="toastMessage"></span>
+  </div>
+</body>
+</html>
