@@ -1,5 +1,19 @@
-node_modules/
 .DS_Store
+
+# Frontend
+frontend/node_modules/
+frontend/.nuxt/
+frontend/.output/
+frontend/.data/
+frontend/dist/
+frontend/.env
+
+# Backend
+backend/target/
+backend/data/*.db-shm
+backend/data/*.db-wal
+
+# Local artifacts
 .screenshots/
-data/*.db-shm
-data/*.db-wal
+.downloads/
+*.log
