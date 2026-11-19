@@ -21,6 +21,36 @@ SQLite  backend/data/mori-coffee.db
 
 前后端分别独立启动、独立构建。后端只负责数据聚合与 CSV 导出，图表由前端使用 SVG 绘制。
 
+### 后端三层架构
+
+```text
+Controller 层   接收 HTTP 请求、绑定参数、返回 Result<VO> / 文件流
+     │          （只依赖 Service 接口，不含业务逻辑、不接触 DAO）
+     ▼
+Service 层      参数校验、默认区间、环比计算、补零、占比、CSV 生成、演示数据生成
+     │          （接口 + impl 实现；只依赖 DAO 接口，抛出 BusinessException）
+     ▼
+DAO 层          只执行 SQL，返回 Entity / 统计 DTO
+                （接口 + JdbcTemplate 实现，不含业务规则）
+```
+
+| 对象 | 包 | 用途 |
+| --- | --- | --- |
+| Entity | `entity` | 与数据表一一对应：`Store`、`Product`、`Order`、`OrderItem` |
+| DTO | `dto` | 层间传参：前端原始参数 `DashboardQueryDTO`、校验后的查询条件 `OrderQueryDTO`、DAO 统计结果 `dto.stat.*` |
+| VO | `vo` | 返回给前端的数据结构，如 `DashboardVO`、`HealthVO` |
+| Result | `common` | 统一返回结构 `{code, message, data}` |
+
+### 前端分层
+
+```text
+pages / components   只负责展示与交互
+     │
+composables          useDashboard：筛选状态、URL 同步、Toast；useApi：注入 API 实例
+     │
+api                  http.ts：请求与 Result 解包、ApiError；dashboard.ts：各接口函数
+```
+
 ## 功能
 
 - **核心指标**：营业额、订单量、客单价、会员订单占比，自动对比上一等长周期。
@@ -47,12 +77,16 @@ SQLite  backend/data/mori-coffee.db
 .
 ├── frontend/                       # Nuxt 前端
 │   ├── app/
-│   │   ├── components/             # 侧边栏、图表、订单表格等
+│   │   ├── api/
+│   │   │   ├── http.ts             # HTTP 客户端、Result 解包、ApiError
+│   │   │   └── dashboard.ts        # health / dashboard / export 接口
 │   │   ├── composables/
-│   │   │   └── useDashboard.ts     # 筛选、API 请求、URL 同步
+│   │   │   ├── useApi.ts           # 读取 apiBase，创建 API 实例
+│   │   │   └── useDashboard.ts     # 筛选、加载状态、URL 同步
+│   │   ├── components/             # 侧边栏、图表、订单表格等
 │   │   ├── pages/index.vue         # 看板页面
+│   │   ├── types/                  # api.ts（Result）、dashboard.ts（VO 类型）
 │   │   ├── utils/format.ts
-│   │   ├── types/dashboard.ts
 │   │   ├── assets/css/main.css
 │   │   └── app.vue
 │   ├── public/favicon.svg
@@ -62,17 +96,23 @@ SQLite  backend/data/mori-coffee.db
 │
 ├── backend/                        # Spring Boot 后端
 │   ├── src/main/java/com/mori/dashboard/
-│   │   ├── controller/             # REST API
-│   │   ├── service/                # 查询解析与指标计算
-│   │   ├── repository/             # SQLite 查询
-│   │   ├── seed/                   # Java 演示数据生成器
-│   │   ├── dto/
-│   │   ├── config/
-│   │   └── exception/
+│   │   ├── controller/             # HealthController / DashboardController / OrderController
+│   │   ├── service/                # Service 接口
+│   │   │   ├── impl/               # Service 实现（业务逻辑）
+│   │   │   └── support/            # Service 层公共组件：参数解析、商品行格式化
+│   │   ├── dao/                    # DAO 接口
+│   │   │   └── impl/               # DAO 实现（JdbcTemplate + SQL）
+│   │   ├── entity/                 # 数据表实体
+│   │   ├── dto/                    # 层间传输对象（查询条件、统计结果）
+│   │   ├── vo/                     # 接口返回对象
+│   │   ├── common/                 # Result 统一返回
+│   │   ├── exception/              # BusinessException、全局异常处理
+│   │   ├── config/                 # CORS、启动时初始化演示数据
+│   │   └── util/                   # CsvUtil、NumberUtil
 │   ├── src/main/resources/
 │   │   ├── application.yml
 │   │   └── schema.sql
-│   ├── src/test/
+│   ├── src/test/                   # 工具类、Service（Mock DAO）、全链路接口测试
 │   ├── data/mori-coffee.db         # 已包含演示数据
 │   └── pom.xml
 │
@@ -162,7 +202,15 @@ SERVER_PORT=9090 DB_PATH=./data/dev.db mvn spring-boot:run
 | `end` | `YYYY-MM-DD` | 结束日期（包含当天） |
 | `store` | 数字 | 门店 ID；省略表示全部门店 |
 
-不传日期时，默认返回数据集中最后 30 天。单次查询最多 366 天，参数不合法返回 `400` 和 `{"error":"..."}`。
+不传日期时，默认返回数据集中最后 30 天。单次查询最多 366 天。
+
+JSON 接口统一返回 `Result` 结构：
+
+```json
+{ "code": 200, "message": "success", "data": { "...": "..." } }
+```
+
+参数不合法时 HTTP 状态码为 `400`，返回 `{"code":400,"message":"开始日期不能晚于结束日期。","data":null}`。CSV 导出接口直接返回文件流。
 
 ```bash
 curl "http://127.0.0.1:8080/api/dashboard?start=2026-10-01&end=2026-10-31&store=2"
@@ -184,7 +232,7 @@ SQLite 中有四张表：
 首次启动时：
 
 1. Spring Boot 执行 `schema.sql` 建表和索引；
-2. `DataSeeder` 检查 `orders` 是否为空；
+2. `DemoDataInitializer` 调用 `DemoDataService` 检查 `orders` 是否为空；
 3. 如果为空，用固定随机种子生成 120 天演示数据；
 4. 如果已有数据则直接跳过。
 
@@ -231,7 +279,7 @@ cd ../backend
 mvn test
 ```
 
-已验证：后端自动建表与种子数据生成、默认/自定义日期和门店筛选、CSV 下载、CORS 预检、Nuxt 交互、移动端布局、错误状态与重试；浏览器控制台无报错。
+已验证：后端单元测试与全链路接口测试（`mvn test`）、重构前后接口数据与 CSV 逐字节一致、后端自动建表与种子数据生成、默认/自定义日期和门店筛选、CSV 下载、CORS 预检、Nuxt 交互、移动端布局、错误状态与重试；浏览器控制台无报错。
 
 ## 说明
 

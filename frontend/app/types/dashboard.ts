@@ -125,3 +125,17 @@ export interface ToastState {
   message: string
   type: 'info' | 'error'
 }
+
+/** 看板查询参数，对应后端 DashboardQueryDTO。 */
+export interface DashboardQuery {
+  start?: string
+  end?: string
+  store?: string
+}
+
+export interface HealthData {
+  status: string
+  database: string
+  orders: number
+  dataRange: PreviousPeriod
+}

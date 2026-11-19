@@ -2,42 +2,30 @@ package com.mori.dashboard.util;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Locale;
+import java.util.stream.Collectors;
 
-import com.mori.dashboard.dto.DashboardResponse.OrderExportRow;
-
+/**
+ * 通用 CSV 生成：UTF-8 + BOM（Excel 可直接打开），每个单元格加双引号，CRLF 换行。
+ */
 public final class CsvUtil {
+
+    private static final String BOM = "﻿";
+    private static final String LINE_END = "\r\n";
 
     private CsvUtil() {
     }
 
-    public static byte[] toCsv(List<OrderExportRow> rows) {
-        StringBuilder builder = new StringBuilder("\uFEFF");
-        builder.append(String.join(",", List.of(
-                cell("订单号"),
-                cell("下单时间"),
-                cell("门店"),
-                cell("商品明细"),
-                cell("件数"),
-                cell("金额（元）"),
-                cell("支付方式"),
-                cell("会员订单")
-        ))).append("\r\n");
-
-        for (OrderExportRow row : rows) {
-            builder.append(String.join(",", List.of(
-                    cell(row.orderNo()),
-                    cell(row.orderedAt()),
-                    cell(row.store()),
-                    cell(row.items()),
-                    cell(Long.toString(row.itemCount())),
-                    cell(String.format(Locale.ROOT, "%.2f", row.total())),
-                    cell(row.payment()),
-                    cell(row.isMember() ? "是" : "否")
-            ))).append("\r\n");
+    public static byte[] write(List<String> headers, List<List<String>> rows) {
+        StringBuilder builder = new StringBuilder(BOM);
+        appendLine(builder, headers);
+        for (List<String> row : rows) {
+            appendLine(builder, row);
         }
-
         return builder.toString().getBytes(StandardCharsets.UTF_8);
+    }
+
+    private static void appendLine(StringBuilder builder, List<String> cells) {
+        builder.append(cells.stream().map(CsvUtil::cell).collect(Collectors.joining(","))).append(LINE_END);
     }
 
     private static String cell(String value) {

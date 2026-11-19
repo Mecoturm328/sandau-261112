@@ -24,5 +24,7 @@ spring:
       write-dates-as-timestamps: false
 
 app:
+  seed:
+    enabled: ${SEED_ENABLED:true}
   cors:
     allowed-origin-patterns: ${CORS_ORIGINS:http://localhost:*,http://127.0.0.1:*}

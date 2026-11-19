@@ -1,7 +1,10 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { useRoute, useRouter, useRuntimeConfig } from '#imports'
+import { useRoute, useRouter } from '#imports'
+import { ApiError } from '~/api/http'
+import { useApi } from '~/composables/useApi'
 import type {
   DashboardData,
+  DashboardQuery,
   DashboardFilters,
   RangeInfo,
   Store,
@@ -30,10 +33,9 @@ function detectPreset(range: RangeInfo): number | null {
 }
 
 export function useDashboard() {
-  const config = useRuntimeConfig()
   const route = useRoute()
   const router = useRouter()
-  const apiBase = String(config.public.apiBase).replace(/\/$/, '')
+  const { apiBase, dashboard: dashboardApi } = useApi()
 
   const data = ref<DashboardData | null>(null)
   const loading = ref(false)
@@ -112,15 +114,14 @@ export function useDashboard() {
     }
   }
 
-  function buildQuery(): string {
-    const params = new URLSearchParams()
+  function currentQuery(): DashboardQuery {
+    const query: DashboardQuery = {}
     if (filters.start && filters.end) {
-      params.set('start', filters.start)
-      params.set('end', filters.end)
+      query.start = filters.start
+      query.end = filters.end
     }
-    if (filters.storeId) params.set('store', filters.storeId)
-    const query = params.toString()
-    return query ? `?${query}` : ''
+    if (filters.storeId) query.store = filters.storeId
+    return query
   }
 
   function syncUrl() {
@@ -155,25 +156,16 @@ export function useDashboard() {
     errorMessage.value = ''
 
     try {
-      const response = await fetch(`${apiBase}/dashboard${buildQuery()}`, {
-        headers: { Accept: 'application/json' },
-        signal: controller.signal,
-      })
-      const payload = await response.json().catch(() => ({}))
-      if (!response.ok) {
-        const error = new Error(payload.error || '数据加载失败，请稍后重试。') as Error & { status?: number }
-        error.status = response.status
-        throw error
-      }
+      const payload = await dashboardApi.getDashboard(currentQuery(), controller.signal)
       if (controller.signal.aborted) return
 
-      applyPayload(payload as DashboardData)
+      applyPayload(payload)
       retriedDefault = false
     } catch (error) {
       if ((error as Error).name === 'AbortError') return
 
-      const typedError = error as Error & { status?: number }
-      if (!data.value && !retriedDefault && typedError.status === 400) {
+      const status = error instanceof ApiError ? error.status : 0
+      if (!data.value && !retriedDefault && status === 400) {
         retriedDefault = true
         filters.start = ''
         filters.end = ''
@@ -184,9 +176,7 @@ export function useDashboard() {
         return
       }
 
-      errorMessage.value = !typedError.status
-        ? '无法连接后端服务，请确认 Spring Boot 已启动。'
-        : (typedError.message || '数据加载失败，请稍后重试。')
+      errorMessage.value = (error as Error).message || '数据加载失败，请稍后重试。'
       showToast(errorMessage.value, 'error')
     } finally {
       if (requestController === controller) {
@@ -241,14 +231,8 @@ export function useDashboard() {
 
   function exportCsv() {
     if (!data.value || exportDisabled.value) return
-    const params = new URLSearchParams({
-      start: filters.start,
-      end: filters.end,
-    })
-    if (filters.storeId) params.set('store', filters.storeId)
-
     const link = document.createElement('a')
-    link.href = `${apiBase}/orders/export?${params.toString()}`
+    link.href = dashboardApi.getExportUrl(currentQuery())
     link.download = ''
     document.body.appendChild(link)
     link.click()
